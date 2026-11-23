@@ -2,29 +2,30 @@
 
 *Episode 4 of a series on finding wasted work in Flutter apps, with numbers instead of guesses.*
 
-![Brief, the news app for this episode. A "new story" pill appears the moment it opens: that's the duplicate request at work](images/01-bug-open.png)
+<p align="center">
+  <img src="images/01-bug-open.png" width="320" alt="Brief, the news app for this episode">
+  <br>
+  <em>Brief. Notice the “1 new story” pill the moment it opens. That’s the bug.</em>
+</p>
 
-I built a small news reader called Brief: serif headlines, a warm paper theme, pull to
-refresh. It looks finished. Then I watched my server log while opening it.
+I built a small news reader called **Brief**: serif headlines, a warm paper theme, pull to refresh. It looks finished.
 
-One open. Two identical requests.
+Then I watched my server log while opening it. One open, **two identical requests**.
 
-Then I pulled to refresh, three times, because the spinner disappeared so fast I wasn't sure
-it had worked. Five requests in total, three of them flagged by the server as duplicates.
+Then I pulled to refresh three times, because the spinner vanished so fast I wasn’t sure it had worked. **Five requests** in total, three of them flagged by the server as duplicates.
 
-This pattern is in almost every app I've reviewed. It's made of two perfectly reasonable
-ideas that don't know about each other.
+This pattern is in almost every app I’ve reviewed, and it comes from two perfectly reasonable ideas that don’t know about each other.
 
-![The server log: two requests on open, and a request for every impatient pull](images/02-server-log.png)
+![The server log: two requests on open, and one more for every impatient pull](images/02-server-log.png)
+*The server log. Every `<-- x2 in 2s` is the same request arriving twice within two seconds.*
 
 ---
 
 ## Bug 1: two loads every time the screen opens
 
-The feed loads in `initState`. That's idea one.
+**Idea one:** load the feed in `initState`.
 
-Idea two: "users should see a spinner while it loads," so the screen calls `show()` on its
-`RefreshIndicator` right after the first frame.
+**Idea two:** users should see a spinner while it loads, so call `show()` on the `RefreshIndicator` after the first frame.
 
 ```dart
 @override
@@ -39,12 +40,9 @@ void initState() {
 }
 ```
 
-Here's the catch: `RefreshIndicator.show()` doesn't just *draw* the spinner. It runs the same
-`onRefresh` callback a pull would. So the screen loads the feed, and a moment later loads it
-again, while the first request is still in flight.
+Here’s the catch: `RefreshIndicator.show()` doesn’t just *draw* the spinner. It runs the same `onRefresh` callback a pull would.
 
-In Brief you can even see it: the second response contains stories the first didn't, so a
-"1 new story" pill appears the instant the app opens.
+So the screen loads the feed, and a moment later loads it again, while the first request is still in flight. In Brief you can even see it: the second response contains a story the first one didn’t, so a “new story” pill appears the instant the app opens.
 
 ## Bug 2: the spinner that lies
 
@@ -52,34 +50,39 @@ In Brief you can even see it: the second response contains stories the first did
 onRefresh: () async => _bloc.add(const FeedRefreshed()),
 ```
 
-`RefreshIndicator` keeps spinning until the `Future` returned by `onRefresh` completes. And
-`bloc.add()` returns immediately. So this `Future` completes immediately, and the spinner
-disappears long before the 700 ms response arrives.
+`RefreshIndicator` keeps spinning until the `Future` returned by `onRefresh` completes. But `bloc.add()` returns immediately, so this `Future` completes immediately.
 
-From the user's side, nothing happened. So they pull again. And again. Every pull is another
-request. With concurrent event handlers, the responses can even arrive out of order.
+The spinner disappears long before the 700 ms response arrives. To the user, nothing happened. So they pull again. And again. **Every pull is another request.**
 
-![Pulling in the buggy version (spinner gone at once), then in the fixed one (spinner waits for the data)](images/08-pull-bug-vs-fix.gif)
+<p align="center">
+  <img src="images/08-pull-bug-vs-fix.gif" width="300" alt="Pulling to refresh, with the bug and then with the fix">
+  <br>
+  <em>First with the bug: the spinner is gone at once. Then with the fix: it waits for the data.</em>
+</p>
 
 ---
 
 ## The fix: three small changes
 
-![The bug and the fix side by side. Same file shape, three changes](images/03-code-side-by-side.png)
+![The buggy screen and the fixed screen, side by side](images/03-code-side-by-side.png)
+*Same file, same shape. Only the highlighted lines change.*
 
-**1. One trigger on open.** The bloc loads once, when it's created. And `droppable()` from
-`bloc_concurrency` ignores extra refresh events while one is running.
+### 1. One trigger on open
+
+The bloc loads once, when it’s created. As a safety net, `droppable()` from `bloc_concurrency` ignores extra refresh events while one is already running.
 
 ```dart
 _bloc = FeedBloc(getIt<FeedRepository>(), dropDuplicateRefreshes: true)
   ..add(const FeedStarted());
 ```
 
-**2. No `show()` on open.** The shimmer skeleton already says "loading". A second loading
-indicator added nothing except a second request.
+### 2. No `show()` on open
 
-**3. An `onRefresh` that tells the truth.** Return a `Future` that completes when the data has
-actually arrived:
+The shimmer skeleton already says “loading”. A second loading indicator added nothing except a second request.
+
+### 3. An `onRefresh` that tells the truth
+
+Return a `Future` that completes when the data has actually arrived:
 
 ```dart
 onRefresh: () async {
@@ -89,78 +92,72 @@ onRefresh: () async {
 },
 ```
 
-Now the spinner stays up exactly as long as the request does. And while it's up,
-`RefreshIndicator` itself refuses another pull, so pulls can't stack.
+Now the spinner stays up exactly as long as the request does. And while it’s up, `RefreshIndicator` itself refuses another pull, so pulls can’t stack.
 
-![What each part fixes, and which one is only a safety net](images/07-fix-parts.png)
+![What each part of the fix does](images/07-fix-parts.png)
+*The first two changes fix the bugs. `droppable()` is a safety net, not the fix.*
 
-I typed this fix into the running app and hot restarted (a hot *reload* wouldn't do it:
-`initState` has to run again). The next open sent one request.
+I typed this fix into the running app and hot restarted. (A hot *reload* isn’t enough here: `initState` has to run again.) The very next open sent **one** request.
 
 ---
 
 ## The numbers
 
-Brief has a small **Lab** sheet that switches the feed between the buggy and the fixed
-version, so both run against the same server, back to back.
+To compare fairly, Brief has a small **Lab** sheet that switches the feed between the buggy and the fixed version, against the same server.
 
-![The Lab sheet: With bug / With fix, and the debug strip toggle](images/04-lab-sheet.png)
+<p align="center">
+  <img src="images/04-lab-sheet.png" width="320" alt="The Lab sheet">
+  <br>
+  <em>The Lab: With bug or With fix, plus a debug strip that counts requests.</em>
+</p>
 
-Open the feed once, then pull to refresh three times as fast as the indicator allows. Same
-server, same 700 ms latency.
+The test: open the feed once, then pull to refresh three times as fast as the indicator allows. Same server, same 700 ms response time.
 
 ![Results: 5 requests with the bug, 3 with the fix](images/06-table-results.png)
+*Five requests became three, and the server flagged zero duplicates.*
 
-The debug strip in the app counts `/feed` requests with
-[waste_lens_dio](https://pub.dev/packages/waste_lens_dio)'s `RedundantCallInterceptor`:
+The debug strip counts the same requests from inside the app, using [waste_lens_dio](https://pub.dev/packages/waste_lens_dio)’s `RedundantCallInterceptor`:
 
-![The debug strip, With bug vs With fix](images/05-debug-strips.png)
+<p align="center">
+  <img src="images/05-debug-strips.png" width="520" alt="The debug strip with the bug and with the fix">
+</p>
 
-One honest footnote about "redundant". waste_lens_dio flags a request when an identical one
-has *finished* within the last 2 seconds. That means:
+### A note on “redundant”
 
-- It **can't** see the two overlapping requests on open: neither has finished when the other
-  starts. The server log catches those.
-- The fix's `redundant: 1` is a real pull that started within 2 s of the previous load
-  finishing. A time window can't tell a duplicate from a user who genuinely wants fresh news.
+waste_lens_dio flags a request when an identical one has *finished* within the last two seconds. Two consequences:
 
-That's why the server log is the headline number here: **3 duplicates with the bug, 0 with the
-fix**.
+- It **can’t** see the two overlapping requests on open, because neither has finished when the other starts. The server log catches those.
+- The fix’s `redundant: 1` is a real pull that started within two seconds of the previous load finishing. A time window can’t tell a duplicate from a user who genuinely wants fresh news.
+
+That’s why the server log is the headline number: **3 duplicates with the bug, 0 with the fix.**
 
 ---
 
-## Three questions you'll probably ask
+## Three questions you’ll probably ask
 
 **Why not just disable the indicator while loading?**
-`RefreshIndicator` already refuses new pulls while its `Future` is pending. The bug isn't that
-it allowed the pull; it's that we told it the refresh finished after 0 ms. Return the real
-Future and it handles the rest.
 
-**Isn't `droppable()` enough on its own?**
-No. It only drops events that arrive *while a handler is still running*. With the lying
-`onRefresh`, the user pulls again after the spinner is gone, often after the previous load has
-finished, so nothing gets dropped. And it does nothing about the `show()`-on-open duplicate.
-Keep it as a safety net.
+`RefreshIndicator` already refuses new pulls while its `Future` is pending. The bug isn’t that it allowed the pull. It’s that we told it the refresh finished after 0 ms. Return the real `Future` and it handles the rest.
+
+**Isn’t `droppable()` enough on its own?**
+
+No. It only drops events that arrive *while a handler is still running*. With the lying `onRefresh`, users pull again after the spinner is gone, often after the previous load has finished, so nothing gets dropped. It also does nothing about the `show()`-on-open duplicate. Keep it as a safety net.
 
 **What about FutureBuilder?**
-Same trap, different shape. `FutureBuilder(future: repo.load())` inside `build()` starts a new
-request on every rebuild, and `onRefresh: () async => setState(...)` lies just the same. Create
-the Future once, keep it in state, and return that same Future from `onRefresh`.
+
+Same trap, different shape. `FutureBuilder(future: repo.load())` inside `build()` starts a new request on every rebuild, and `onRefresh: () async => setState(...)` lies in exactly the same way. Create the `Future` once, keep it in state, and return that same `Future` from `onRefresh`.
 
 ---
 
 ## The rule
 
-**One trigger on open, and an `onRefresh` that tells the truth.** `droppable()` is a good
-safety net, but the real fix is making the spinner mean what it says.
+> **One trigger on open, and an `onRefresh` that tells the truth.**
 
-Watch the 2½-minute live-coding video: the duplicate in the server log, the spinner that lies,
-and the fix typed in and hot restarted.
+`droppable()` is a good safety net. But the real fix is making the spinner mean what it says.
 
 ---
 
-*Code: [github.com/poojadev/brief](https://github.com/poojadev/brief) · waste_lens:
-[pub.dev/packages/waste_lens](https://pub.dev/packages/waste_lens) · waste_lens_dio:
-[pub.dev/packages/waste_lens_dio](https://pub.dev/packages/waste_lens_dio)*
+*Code: [github.com/poojadev/brief](https://github.com/poojadev/brief)*
+*waste_lens: [pub.dev/packages/waste_lens](https://pub.dev/packages/waste_lens) · waste_lens_dio: [pub.dev/packages/waste_lens_dio](https://pub.dev/packages/waste_lens_dio)*
 
 *Next episode: the stream you forgot to cancel.*
