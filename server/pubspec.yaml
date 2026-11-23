@@ -1,0 +1,16 @@
+name: brief_server
+description: Deterministic mock news server for the Brief demo app (Episode 4).
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  args: ^2.6.0
+  image: ^4.3.0
+  shelf: ^1.4.2
+  shelf_router: ^1.1.4
+
+dev_dependencies:
+  lints: ^5.0.0
