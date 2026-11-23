@@ -1,8 +1,8 @@
 # EP04 voiceover: "Pull-to-refresh + initState: the duplicate fetch in almost every app"
 
-Timed to `brief-ep04-live-coding.mp4` (2:34). The video already has this voiceover, synthesised
-with the macOS voice **Samantha** at a slightly relaxed pace. To record your own voice, read each line at
-its start time; every line fits its section with room to breathe.
+Timed to `brief-ep04-live-coding.mp4` (2:34). The video is silent: record your own voice over it,
+reading each line at its start time. Every line fits its section with room to breathe (the timings
+were checked against a synthesised read at a relaxed pace).
 
 ---
 
