@@ -4,3 +4,7 @@ build/
 *.iml
 .idea/
 .vscode/
+
+# Articles, scripts, media and gist snippets stay local (not in git)
+article/
+article_snippets/
