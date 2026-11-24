@@ -45,6 +45,11 @@ Future<void> main(List<String> args) async {
       final n = req.context['brief.n'];
       final delay = latency + (jitter > 0 ? timing.nextInt(jitter + 1) : 0);
       await Future<void>.delayed(Duration(milliseconds: delay));
+      // The app's Lab switch "Server returns errors" adds ?fail=1.
+      if (req.url.queryParameters['fail'] == '1') {
+        stdout.writeln('       [#$n] 503 after ${delay}ms  (Lab: server returns errors)');
+        return _json({'error': 'Simulated outage'}, status: 503);
+      }
       // Page 1 is "what's new now": publish 1-3 fresh stories first.
       final fresh = page == 1 ? news.publish() : 0;
       stdout.writeln('       [#$n] 200 after ${delay}ms${fresh > 0 ? '  +$fresh new' : ''}');

@@ -57,7 +57,15 @@ class _FeedViewState extends State<FeedView> {
   @override
   Widget build(BuildContext context) {
     final c = BriefColors.of(context);
-    return BlocBuilder<FeedBloc, FeedState>(
+    return BlocConsumer<FeedBloc, FeedState>(
+      // A refresh that failed keeps the old stories on screen: say so.
+      listenWhen: (before, now) =>
+          before.refreshing && !now.refreshing && now.error != null,
+      listener: (context, state) => ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text("Couldn't refresh. Pull to try again.")),
+        ),
       builder: (context, state) => Stack(
         children: [
           RefreshIndicator(

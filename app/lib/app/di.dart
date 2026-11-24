@@ -17,18 +17,35 @@ void configureDependencies() {
     ..registerLazySingleton<FeedCallStats>(
       () => FeedCallStats(bus: WasteLens.current?.bus),
     )
-    ..registerLazySingleton<Dio>(
-      () => Dio(
-        BaseOptions(
-          baseUrl: AppConfig.baseUrl,
-          connectTimeout: const Duration(seconds: 5),
-          receiveTimeout: const Duration(seconds: 15),
-        ),
-      )..interceptors.add(getIt<FeedCallStats>().interceptor),
-    )
+    ..registerLazySingleton<Dio>(_createDio)
     ..registerLazySingleton<FeedApi>(() => FeedApi(getIt<Dio>()))
     ..registerLazySingleton<FeedRepository>(
       () => FeedRepository(getIt<FeedApi>()),
     )
     ..registerLazySingleton<LabSettings>(LabSettings.new);
 }
+
+Dio _createDio() {
+  final dio = Dio(
+    BaseOptions(
+      baseUrl: AppConfig.baseUrl,
+      connectTimeout: const Duration(seconds: 5),
+      receiveTimeout: const Duration(seconds: 15),
+    ),
+  );
+  dio.interceptors
+    ..add(_labFailures)
+    ..add(getIt<FeedCallStats>().interceptor);
+  return dio;
+}
+
+/// Lab: "Server returns errors" adds ?fail=1, the mock server's switch for a
+/// 503 response.
+final _labFailures = InterceptorsWrapper(
+  onRequest: (options, handler) {
+    if (getIt<LabSettings>().serverErrors) {
+      options.queryParameters = {...options.queryParameters, 'fail': 1};
+    }
+    handler.next(options);
+  },
+);

@@ -83,6 +83,15 @@ class _LabSheet extends StatelessWidget {
                 value: lab.showStrip,
                 onChanged: (v) => lab.showStrip = v,
               ),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Server returns errors'),
+                subtitle: const Text(
+                  'Every /feed request fails with a 503 after the usual delay',
+                ),
+                value: lab.serverErrors,
+                onChanged: (v) => lab.serverErrors = v,
+              ),
             ],
           ),
         ),

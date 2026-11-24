@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -22,7 +24,7 @@ class _FeedPageFixState extends State<FeedPageFix> {
   void initState() {
     super.initState();
     // 1. Load once, when the bloc is created: the ONE trigger on open.
-    //    (droppable() ignores extra refreshes while one is running.)
+    //    (droppable() in FeedBloc drops extra refreshes while one runs.)
     _bloc = FeedBloc(getIt<FeedRepository>(), dropDuplicateRefreshes: true)
       ..add(const FeedStarted());
     // 2. No show() on open: the skeleton already says "loading".
@@ -43,9 +45,15 @@ class _FeedPageFixState extends State<FeedPageFix> {
         // 3. Completes only when the load has finished, so the spinner
         //    stays up exactly as long as the request does.
         onRefresh: () async {
+          // settled = loaded OR failed, so errors stop the spinner too.
           final done = _bloc.stream.firstWhere((s) => s.settled);
-          _bloc.add(const FeedRefreshed());
-          await done;
+          // Already loading (e.g. the first load)? Wait for it instead.
+          if (_bloc.state.settled) _bloc.add(const FeedRefreshed());
+          try {
+            await done.timeout(const Duration(seconds: 15));
+          } on TimeoutException {
+            // Never spin forever: stop the spinner, the load may still land.
+          }
         },
       ),
     );

@@ -9,17 +9,18 @@ part 'feed_event.dart';
 part 'feed_state.dart';
 
 class FeedBloc extends Bloc<FeedEvent, FeedState> {
-  /// [dropDuplicateRefreshes]: the "With fix" safety net. While a refresh is
-  /// running, further FeedRefreshed events are dropped (droppable()). Without
-  /// it, every refresh runs, concurrently (Bloc's default).
+  /// [dropDuplicateRefreshes] is true for "With fix", false for "With bug".
   FeedBloc(this._repo, {bool dropDuplicateRefreshes = false})
     : super(const FeedState()) {
     on<FeedStarted>(_onStarted);
     on<FeedCategorySelected>(_onCategorySelected);
-    on<FeedRefreshed>(
-      _onRefreshed,
-      transformer: dropDuplicateRefreshes ? droppable() : null,
-    );
+    if (dropDuplicateRefreshes) {
+      // With fix: while a refresh is running, drop any more FeedRefreshed.
+      on<FeedRefreshed>(_onRefreshed, transformer: droppable());
+    } else {
+      // With bug: Bloc's default, every refresh runs, concurrently.
+      on<FeedRefreshed>(_onRefreshed);
+    }
     on<FeedNewStoriesSeen>((_, emit) => emit(state.copyWith(newCount: 0)));
   }
 
