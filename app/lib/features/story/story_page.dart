@@ -8,9 +8,12 @@ import '../feed/widgets/cover_image.dart';
 /// Reading a story: collapsing cover, serif title, byline, body, and a thin
 /// reading-progress bar along the top.
 class StoryPage extends StatefulWidget {
-  const StoryPage({super.key, required this.story});
+  const StoryPage({super.key, required this.story, this.readingNow});
 
   final Story story;
+
+  /// Episode 5's live "reading now" badge, shown under the byline.
+  final Widget? readingNow;
 
   @override
   State<StoryPage> createState() => _StoryPageState();
@@ -118,6 +121,10 @@ class _StoryPageState extends State<StoryPage> {
                           ),
                           const SizedBox(height: Space.l),
                           _Byline(story: story),
+                          if (widget.readingNow case final badge?) ...[
+                            const SizedBox(height: Space.s + 4),
+                            badge,
+                          ],
                           const SizedBox(height: Space.l),
                           Divider(color: c.hairline, height: 1),
                           const SizedBox(height: Space.l),

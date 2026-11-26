@@ -1,7 +1,10 @@
 # Brief
 
-A calm, editorial news reader built for **Episode 4** of a Flutter performance series:
-*"Pull-to-refresh + initState: the duplicate fetch in almost every app."*
+A calm, editorial news reader built for a Flutter performance series:
+
+- **Episode 4**: *"Pull-to-refresh + initState: the duplicate fetch in almost every app."*
+- **Episode 5**: *"The stream you forgot to cancel"*: a live "reading now" badge whose
+  socket outlives the story page.
 
 It's a real-feeling app (serif headlines, warm paper theme, dark mode, Hero transitions,
 shimmer skeletons) with one very common bug inside, and a **Lab** switch to compare it with
@@ -15,7 +18,6 @@ the fix. [waste_lens](https://pub.dev/packages/waste_lens) and
 ```
 server/    Deterministic mock news server (Dart + shelf), with generated cover art
 app/       Flutter app: Bloc + bloc_concurrency, get_it, Dio, google_fonts, waste_lens
-episodes/  The episode guide: the bug, the fix, the numbers, the script
 docs/      Screenshots
 ```
 
@@ -59,8 +61,14 @@ Run in **debug** mode: waste_lens turns itself off in release builds.
 
 ### 3. The Lab
 
-Tap the **Lab** pill (top-right) to switch the feed between **With bug** and **With fix**,
-and to show or hide the debug strip (`requests: N · redundant: M` for `/feed`).
+Tap the **Lab** pill (top-right) and pick an episode:
+
+- **Ep 4 · refresh**: switch the feed between **With bug** and **With fix**. The debug strip
+  shows `requests: N · redundant: M` for `/feed`. "Server returns errors" makes `/feed` fail.
+- **Ep 5 · streams**: opening a story uses this mode for its live badge. The debug strip shows
+  `sockets: N · leaks: M` (open live sockets, and waste_lens leak reports about Episode 5's
+  objects). "Run garbage collection" forces 3 GC cycles so leak_tracker can judge closed
+  pages straight away.
 
 ### Checks
 
@@ -76,6 +84,7 @@ cd app && flutter analyze && flutter test
 | GET | `/feed?category=top&page=1` | `{category, page, hasMore, stories}`. 12 stories per page. Categories: `top`, `tech`, `markets`, `health`, `science`, `culture`. Each page-1 request publishes 1–3 new stories first. |
 | GET | `/images/{id}.jpg` | Generated abstract cover art, 1200×800 JPEG (~30 KB), deterministic per id |
 | GET | `/health` | `{ok: true}` |
+| WS | `/live/{storyId}` | `{storyId, readers}` once a second: deterministic per story, 800–2,500 |
 
 A story: `{id, title, summary, body[], category, source, author, publishedAt, readMinutes, imageUrl}`.
 Every source, person and place is fictional.
@@ -88,6 +97,9 @@ The server log marks duplicate requests:
        [#10] 200 after 700ms  +1 new
 ```
 
-## The episode
+and live sockets opening and closing:
 
-[EP04: Pull-to-refresh + initState](episodes/EP04_pull_to_refresh_initstate.md)
+```
+[ws] +1 /live/f12   open sockets: 3
+[ws] -1 /live/f12   open sockets: 2   (after 2s)
+```

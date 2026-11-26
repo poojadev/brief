@@ -3,17 +3,23 @@ import 'package:material_ui/material_ui.dart';
 import '../../app/di.dart';
 import '../../app/feed_call_stats.dart';
 import '../../app/lab.dart';
+import '../../app/live_stats.dart';
 import '../../app/theme.dart';
 
-/// Slim strip at the bottom: "requests: N · redundant: M" for /feed.
+/// Slim strip at the bottom.
+///   Episode 4: "requests: N · redundant: M" for /feed.
+///   Episode 5: "sockets: N · leaks: M" for the live badge.
 class DebugStrip extends StatelessWidget {
-  const DebugStrip({super.key, required this.mode});
+  const DebugStrip({super.key, required this.episode, required this.mode});
 
+  final LabEpisode episode;
   final LabMode mode;
 
   @override
   Widget build(BuildContext context) {
-    final stats = getIt<FeedCallStats>();
+    final feed = getIt<FeedCallStats>();
+    final live = getIt<LiveStats>();
+    final ep4 = episode == LabEpisode.refresh;
     final c = BriefColors.of(context);
     final bug = mode == LabMode.bug;
     final style = Theme.of(context).textTheme.labelMedium!.copyWith(
@@ -48,9 +54,11 @@ class DebugStrip extends StatelessWidget {
                 const SizedBox(width: Space.m),
                 // Left-aligned: the waste_lens bubble lives bottom-right.
                 ListenableBuilder(
-                  listenable: stats,
+                  listenable: ep4 ? feed : live,
                   builder: (context, _) => Text(
-                    'requests: ${stats.requests} · redundant: ${stats.redundant}',
+                    ep4
+                        ? 'requests: ${feed.requests} · redundant: ${feed.redundant}'
+                        : 'sockets: ${live.sockets} · leaks: ${live.leaks}',
                     style: style,
                   ),
                 ),

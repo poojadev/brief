@@ -37,7 +37,12 @@ class TodayPage extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
           child: lab.showStrip
-              ? DebugStrip(mode: lab.mode)
+              ? DebugStrip(
+                  episode: lab.episode,
+                  mode: lab.episode == LabEpisode.refresh
+                      ? lab.mode
+                      : lab.liveMode,
+                )
               : const SizedBox(width: double.infinity),
         ),
       ),

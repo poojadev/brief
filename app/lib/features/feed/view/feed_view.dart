@@ -7,7 +7,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../app/format.dart';
 import '../../../app/theme.dart';
 import '../../../data/models/story.dart';
-import '../../story/story_page.dart';
+import '../../story/open_story.dart';
 import '../bloc/feed_bloc.dart';
 import '../widgets/category_chips.dart';
 import '../widgets/error_view.dart';
@@ -42,8 +42,9 @@ class _FeedViewState extends State<FeedView> {
     super.dispose();
   }
 
-  void _open(Story story) => Navigator.of(context)
-      .push(MaterialPageRoute<void>(builder: (_) => StoryPage(story: story)));
+  void _open(Story story) =>
+      Navigator.of(context)
+          .push(MaterialPageRoute<void>(builder: (_) => storyPageFor(story)));
 
   void _showNew() {
     _scroll.animateTo(

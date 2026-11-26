@@ -1,13 +1,17 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
 import 'package:args/args.dart';
 import 'package:brief_server/cover.dart';
+import 'package:brief_server/live.dart';
 import 'package:brief_server/news.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
+import 'package:shelf_web_socket/shelf_web_socket.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 /// Brief mock news server.
 ///
@@ -35,6 +39,9 @@ Future<void> main(List<String> args) async {
   final logImages = opts['log-images'] as bool;
   final news = Newsroom(seed: int.parse(opts['seed'] as String));
   final timing = Random(); // timing only; the content stays deterministic
+  final live = LiveReaders(seed: int.parse(opts['seed'] as String));
+  final clock = DateTime.now();
+  final sockets = _SocketLog();
 
   final router = Router()
     ..get('/health', (Request _) => _json({'ok': true}))
@@ -54,6 +61,31 @@ Future<void> main(List<String> args) async {
       final fresh = page == 1 ? news.publish() : 0;
       stdout.writeln('       [#$n] 200 after ${delay}ms${fresh > 0 ? '  +$fresh new' : ''}');
       return _json(news.feed(category, page));
+    })
+    // WS /live/<storyId>: {"storyId", "readers"} once a second (Episode 5).
+    ..get('/live/<storyId>', (Request req, String storyId) {
+      return webSocketHandler((WebSocketChannel ws, String? _) {
+        sockets.open(storyId);
+        final started = DateTime.now();
+        void send() {
+          final tick = DateTime.now().difference(clock).inSeconds;
+          ws.sink.add(jsonEncode({'storyId': storyId, 'readers': live.at(storyId, tick)}));
+        }
+
+        send();
+        final timer = Timer.periodic(const Duration(seconds: 1), (_) => send());
+        // The client cancelled (or vanished): stop sending, close our side.
+        ws.stream.listen(
+          (_) {},
+          onDone: () {
+            timer.cancel();
+            ws.sink.close();
+            sockets.close(storyId, DateTime.now().difference(started));
+          },
+          onError: (_) {},
+          cancelOnError: false,
+        );
+      })(req);
     })
     ..get('/images/<file>', (Request req, String file) {
       final id = file.replaceAll('.jpg', '');
@@ -88,6 +120,7 @@ Middleware _requestLog({required bool logImages}) {
   final recent = <String, List<DateTime>>{};
   var n = 0;
   return (inner) => (req) async {
+        if (req.url.path.startsWith('live/')) return inner(req); // [ws] lines
         final isImage = req.url.path.startsWith('images/');
         if (isImage) {
           if (logImages) stdout.writeln('  · ${req.url.path}');
@@ -103,4 +136,20 @@ Middleware _requestLog({required bool logImages}) {
         stdout.writeln('[#$n] $key$dup');
         return inner(req.change(context: {'brief.n': n}));
       };
+}
+
+/// Logs live sockets opening and closing, with how many are open right now.
+class _SocketLog {
+  var _open = 0;
+
+  void open(String storyId) {
+    _open++;
+    stdout.writeln('[ws] +1 /live/$storyId   open sockets: $_open');
+  }
+
+  void close(String storyId, Duration lived) {
+    _open--;
+    stdout.writeln('[ws] -1 /live/$storyId   open sockets: $_open'
+        '   (after ${lived.inSeconds}s)');
+  }
 }

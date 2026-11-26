@@ -35,3 +35,7 @@ String timeAgo(DateTime t, {DateTime? now}) {
   if (diff.inDays == 1) return 'Yesterday';
   return '${diff.inDays} days ago';
 }
+
+/// 1204 -> "1,204"
+String grouped(int n) =>
+    n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');

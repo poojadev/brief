@@ -44,6 +44,7 @@ dependencies:
   google_fonts: ^9.0.0
   waste_lens: ^0.2.0
   waste_lens_dio: ^0.1.1
+  leak_tracker: ^11.0.2
 
 dev_dependencies:
   flutter_test:

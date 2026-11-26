@@ -3,10 +3,12 @@ import 'package:get_it/get_it.dart';
 import 'package:waste_lens/waste_lens.dart';
 
 import '../data/api/feed_api.dart';
+import '../data/api/live_readers.dart';
 import '../data/repository/feed_repository.dart';
 import 'config.dart';
 import 'feed_call_stats.dart';
 import 'lab.dart';
+import 'live_stats.dart';
 
 final getIt = GetIt.instance;
 
@@ -21,6 +23,15 @@ void configureDependencies() {
     ..registerLazySingleton<FeedApi>(() => FeedApi(getIt<Dio>()))
     ..registerLazySingleton<FeedRepository>(
       () => FeedRepository(getIt<FeedApi>()),
+    )
+    ..registerLazySingleton<LiveStats>(
+      () => LiveStats(bus: WasteLens.current?.bus),
+    )
+    ..registerLazySingleton<LiveReaders>(
+      () => SocketLiveReaders(
+        baseUrl: AppConfig.wsUrl,
+        stats: getIt<LiveStats>(),
+      ),
     )
     ..registerLazySingleton<LabSettings>(LabSettings.new);
 }

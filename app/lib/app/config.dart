@@ -14,4 +14,7 @@ class AppConfig {
       : (Platform.isAndroid ? '10.0.2.2' : 'localhost');
 
   static String get baseUrl => 'http://$host:$port';
+
+  /// Episode 5's live sockets: ws://host:port/live/{storyId}
+  static String get wsUrl => 'ws://$host:$port';
 }
